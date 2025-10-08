@@ -4,6 +4,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import fetch_openml
 import numpy as np
 from sklearn.model_selection import train_test_split
+import torch
+import torch.nn as nn
 
 class MnistClassifierInterface(ABC):
     @abstractmethod
@@ -25,15 +27,146 @@ class RandomForestMnistClassifier(MnistClassifierInterface):
         return self.model.predict(X_test)
     
 class FeedForwardMnistClassifier(MnistClassifierInterface):
-    def __init__(self, input_size, hidden_size, output_size):
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.output_size = output_size
+    def __init__(self, input_size, hidden_size, output_size, lr=0.001, epochs=100, batch_size=128):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.BatchNorm1d(hidden_size),
+            nn.GELU(),
+            nn.Dropout(0.2),
+            
+            nn.Linear(hidden_size, hidden_size),
+            nn.BatchNorm1d(hidden_size),
+            nn.GELU(),
+            nn.Dropout(0.2),
+            
+            nn.Linear(hidden_size, hidden_size // 2),
+            nn.BatchNorm1d(hidden_size // 2),
+            nn.GELU(),
+            nn.Dropout(0.2),
+            
+            nn.Linear(hidden_size // 2, 256),
+            nn.BatchNorm1d(256),
+            nn.GELU(),
+            nn.Dropout(0.1),
+            
+            nn.Linear(256, output_size)
+        ).to(self.device)
+        
+        self.criterion = nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.AdamW(
+            self.model.parameters(), 
+            lr=lr,
+            weight_decay=1e-4 # L2 regularization
+        )
 
-    def train(self, X_train, y_train):
-        pass
+        # Scheduler for learning rate decay
+        self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            self.optimizer,
+            max_lr=lr * 10,
+            epochs=epochs,
+            steps_per_epoch=438,  # Assuming 438 batches per epoch for MNIST with batch_size=128
+            pct_start=0.3,
+            anneal_strategy='cos'
+        )
+        
+        self.epochs = epochs
+        self.batch_size = batch_size
+
+    def train(self, X_train, y_train, X_val=None, y_val=None):
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_train, y_train, test_size=0.1, random_state=42
+        )
+        X_train_tensor = torch.tensor(X_train.values, dtype=torch.float32).to(self.device)
+        y_train_tensor = torch.tensor(y_train.values, dtype=torch.long).to(self.device)
+        X_val_tensor = torch.tensor(X_val.values, dtype=torch.float32).to(self.device)
+        y_val_tensor = torch.tensor(y_val.values, dtype=torch.long).to(self.device)
+        
+        # DataLoader for batching
+        dataset = torch.utils.data.TensorDataset(X_train_tensor, y_train_tensor)
+        dataloader = torch.utils.data.DataLoader(
+            dataset, 
+            batch_size=self.batch_size, 
+            shuffle=True,  # Shuffle the data
+            pin_memory=True if self.device.type == 'cuda' else False  # Pin memory for faster transfers to GPU
+        )
+        
+        best_loss = float('inf') # best validation loss for early stopping
+        patience = 15 # epochs to wait for improvement before stopping
+        patience_counter = 0 # counter for early stopping
+        best_model_state = None # to store the best model state
+        
+        for epoch in range(self.epochs):
+            self.model.train()
+            epoch_loss = 0
+            correct = 0
+            total = 0
+            
+            for batch_X, batch_y in dataloader:
+                self.optimizer.zero_grad(set_to_none=True) # More efficient zeroing
+                
+                outputs = self.model(batch_X) 
+                loss = self.criterion(outputs, batch_y)
+                
+                loss.backward()
+                
+                # gradient clipping for stability
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                
+                self.optimizer.step()
+                
+                epoch_loss += loss.item()
+                _, predicted = torch.max(outputs.data, 1)
+                total += batch_y.size(0)
+                correct += (predicted == batch_y).sum().item()
+             
+            avg_train_loss = epoch_loss / len(dataloader)
+            train_accuracy = 100 * correct / total
+            
+            # Validation step
+            self.model.eval()
+            with torch.no_grad():
+                val_outputs = self.model(X_val_tensor)
+                val_loss = self.criterion(val_outputs, y_val_tensor).item()
+                _, val_preds = torch.max(val_outputs, 1)
+                val_acc = 100 * (val_preds == y_val_tensor).sum().item() / len(y_val_tensor)
+           
+            # Early stopping
+            if val_loss < best_loss:
+                best_loss = val_loss
+                patience_counter = 0
+                best_model_state = self.model.state_dict()
+            else:
+                patience_counter += 1
+                
+            if patience_counter >= patience:
+                print(f"Early stopping at epoch {epoch+1}")
+                break
+            
+            if (epoch + 1) % 5 == 0 or patience_counter == patience:
+                print(f"Epoch [{epoch+1}/{self.epochs}] "
+                      f"Train Loss: {avg_train_loss:.4f}, Acc: {train_accuracy:.2f}% | "
+                      f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+            self.scheduler.step()
+
+        if best_model_state is not None:
+            self.model.load_state_dict(best_model_state)
+
     def predict(self, X_test):
-        pass 
+        X_test_tensor = torch.tensor(X_test.values, dtype=torch.float32).to(self.device)
+        
+        self.model.eval()
+        predictions = []
+        # Batch prediction for large datasets
+        batch_size = 1000
+        with torch.no_grad():
+            for i in range(0, len(X_test_tensor), batch_size):
+                batch = X_test_tensor[i:i+batch_size]
+                outputs = self.model(batch)
+                _, predicted = torch.max(outputs, 1)
+                predictions.extend(predicted.cpu().numpy())
+        
+        return np.array(predictions)
 
 class ConvolutionalMnistClassifier(MnistClassifierInterface):
     def __init__(self):
@@ -50,7 +183,7 @@ class MnistClassifier:
         if classifier == 'rf':
             self.classifier = RandomForestMnistClassifier()
         elif classifier == 'nn':
-            self.classifier = FeedForwardMnistClassifier(input_size=784, hidden_size=128, output_size=10)
+            self.classifier = FeedForwardMnistClassifier(input_size=784, hidden_size=700, output_size=10)
         elif classifier == 'cnn':
             self.classifier = ConvolutionalMnistClassifier()
         else:
@@ -71,7 +204,7 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
-    print("Enter which model to use: 'rf' (random forest), 'nn' (feedforward - not implemented), 'cnn' (not implemented).")
+    print("Enter which model to use: 'rf' (random forest), 'nn' (feedforward neural network), 'cnn' (not implemented).")
     print("Type 'Exit' to quit.")
     while True:
         choice = input("Model> ").strip()
@@ -85,7 +218,7 @@ if __name__ == "__main__":
             print(f"You selected: {choice} model.")
             mnist_classifier = MnistClassifier(classifier=choice)
         try:
-            print("Training... this may take a little while depending on your machine")
+            print("Training model...")
             mnist_classifier.train(X_train, y_train)
             predictions = mnist_classifier.predict(X_test)
             acc = accuracy_score(y_test, predictions)
