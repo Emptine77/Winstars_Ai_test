@@ -65,12 +65,31 @@ class MnistClassifier:
 if __name__ == "__main__":
     mnist = fetch_openml('mnist_784', version=1)
     X = mnist.data
-    y = mnist.target    
+    y = mnist.target 
+    X = X.astype(np.float32) / 255.0  # Normalize pixel values to [0, 1]
+    y = y.astype(np.int64)  # Convert target to integer type
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
-    mnist_classifier = MnistClassifier(classifier='rf')
-    mnist_classifier.train(X_train, y_train)
-    predictions = mnist_classifier.predict(X_test)
-    print("Predictions:", predictions)
-    print("Accuracy:", accuracy_score(y_test, predictions))
+    print("Enter which model to use: 'rf' (random forest), 'nn' (feedforward - not implemented), 'cnn' (not implemented).")
+    print("Type 'Exit' to quit.")
+    while True:
+        choice = input("Model> ").strip()
+        if choice.lower() == 'exit':
+            print("Exiting.")
+            break
+        if choice not in ('rf', 'nn', 'cnn'):
+            print("Invalid choice. Please enter 'rf', 'nn', 'cnn' or 'Exit'.")
+            continue
+        else:
+            print(f"You selected: {choice} model.")
+            mnist_classifier = MnistClassifier(classifier=choice)
+        try:
+            print("Training... this may take a little while depending on your machine")
+            mnist_classifier.train(X_train, y_train)
+            predictions = mnist_classifier.predict(X_test)
+            acc = accuracy_score(y_test, predictions)
+            print(f"Accuracy on subset: {acc:.4f}")
+        except Exception as e:
+            print("An error occurred while training or evaluating the model:", e)
+            print("Please try again or type 'Exit' to quit.")
