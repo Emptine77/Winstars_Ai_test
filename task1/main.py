@@ -114,7 +114,7 @@ class FeedForwardMnistClassifier(MnistClassifierInterface):
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 
                 self.optimizer.step()
-                
+                self.scheduler.step()
                 epoch_loss += loss.item()
                 _, predicted = torch.max(outputs.data, 1)
                 total += batch_y.size(0)
@@ -131,7 +131,7 @@ class FeedForwardMnistClassifier(MnistClassifierInterface):
                 _, val_preds = torch.max(val_outputs, 1)
                 val_acc = 100 * (val_preds == y_val_tensor).sum().item() / len(y_val_tensor)
            
-            # Early stopping
+            # Early stopping 
             if val_loss < best_loss:
                 best_loss = val_loss
                 patience_counter = 0
@@ -147,10 +147,13 @@ class FeedForwardMnistClassifier(MnistClassifierInterface):
                 print(f"Epoch [{epoch+1}/{self.epochs}] "
                       f"Train Loss: {avg_train_loss:.4f}, Acc: {train_accuracy:.2f}% | "
                       f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
-            self.scheduler.step()
+            
+            if self.device.type == 'cuda':
+                torch.cuda.empty_cache()
 
         if best_model_state is not None:
             self.model.load_state_dict(best_model_state)
+            print("Loaded best model from training")
 
     def predict(self, X_test):
         X_test_tensor = torch.tensor(X_test.values, dtype=torch.float32).to(self.device)
@@ -169,14 +172,179 @@ class FeedForwardMnistClassifier(MnistClassifierInterface):
         return np.array(predictions)
 
 class ConvolutionalMnistClassifier(MnistClassifierInterface):
-    def __init__(self):
-        pass
+    def __init__(self, lr=0.001, epochs=50, batch_size=256):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = nn.Sequential(
+            # First conv block: 1 -> 32 channels
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.GELU(),
+            nn.MaxPool2d(2, 2),  # 28x28 -> 14x14
+            nn.Dropout2d(0.2),
+            
+            # Second conv block: 32 -> 64 channels
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.GELU(),
+            nn.MaxPool2d(2, 2),  # 14x14 -> 7x7
+            nn.Dropout2d(0.2),
+            
+            # Flatten
+            nn.Flatten(),
+            
+            # Fully connected layers
+            nn.Linear(64 * 7 * 7, 128),
+            nn.GELU(),
+            nn.Dropout(0.1),
+            
+            nn.Linear(128, 10)  # 10 classes for MNIST
+        ).to(self.device)
+        
+        self.criterion = nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(), 
+            lr=lr,
+            weight_decay=1e-4
+        )
+        
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer,
+            mode='min',
+            factor=0.5,
+            patience=3,
+        )
 
-    def train(self, X_train, y_train):
-        pass
+        self.epochs = epochs
+        self.batch_size = batch_size
+
+    def train(self, X_train, y_train, X_val=None, y_val=None):
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_train, y_train, test_size=0.1, random_state=42
+        )
+        X_train_np = X_train.values if hasattr(X_train, 'values') else X_train
+        X_val_np = X_val.values if hasattr(X_val, 'values') else X_val
+        y_train_np = y_train.values if hasattr(y_train, 'values') else y_train
+        y_val_np = y_val.values if hasattr(y_val, 'values') else y_val
+        # Reshape from (N, 784) to (N, 1, 28, 28) for CNN
+        X_train_tensor = torch.tensor(
+            X_train_np.reshape(-1, 1, 28, 28), 
+            dtype=torch.float32
+        )
+        y_train_tensor = torch.tensor(y_train_np, dtype=torch.long)
+        
+        X_val_tensor = torch.tensor(
+            X_val_np.reshape(-1, 1, 28, 28), 
+            dtype=torch.float32
+        ).to(self.device)
+        y_val_tensor = torch.tensor(y_val_np, dtype=torch.long).to(self.device)
+        
+        # DataLoader 
+        dataset = torch.utils.data.TensorDataset(X_train_tensor, y_train_tensor)
+        dataloader = torch.utils.data.DataLoader(
+            dataset, 
+            batch_size=self.batch_size, 
+            shuffle=True,
+            num_workers=0,  # Set to 0 to avoid multiprocessing issues
+            pin_memory=True if self.device.type == 'cuda' else False
+        )
+        
+        best_loss = float('inf')
+        patience = 15
+        patience_counter = 0
+        best_model_state = None
+        
+        for epoch in range(self.epochs):
+            self.model.train()
+            epoch_loss = 0
+            correct = 0
+            total = 0
+            
+            for batch_idx, (batch_X, batch_y) in enumerate(dataloader):
+                # Move batch to device
+                batch_X = batch_X.to(self.device)
+                batch_y = batch_y.to(self.device)
+                
+                self.optimizer.zero_grad(set_to_none=True)
+                
+                outputs = self.model(batch_X)
+                loss = self.criterion(outputs, batch_y)
+                
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                
+                self.optimizer.step()
+                
+                epoch_loss += loss.item()
+                _, predicted = torch.max(outputs.data, 1)
+                total += batch_y.size(0)
+                correct += (predicted == batch_y).sum().item()
+                
+            avg_train_loss = epoch_loss / len(dataloader)
+            train_accuracy = 100 * correct / total
+            
+            # Validation
+            self.model.eval()
+            with torch.no_grad():
+                val_outputs = self.model(X_val_tensor)
+                val_loss = self.criterion(val_outputs, y_val_tensor).item()
+                _, val_preds = torch.max(val_outputs, 1)
+                val_acc = 100 * (val_preds == y_val_tensor).sum().item() / len(y_val_tensor)
+                
+            # Early stopping
+            if val_loss < best_loss:
+                best_loss = val_loss
+                patience_counter = 0
+                best_model_state = self.model.state_dict()
+            else:
+                patience_counter += 1
+            
+            if (epoch + 1) % 5 == 0 or patience_counter == patience:
+                print(f"Epoch [{epoch+1}/{self.epochs}] "
+                      f"Train Loss: {avg_train_loss:.4f}, Acc: {train_accuracy:.2f}% | "
+                      f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+            
+            if patience_counter >= patience:
+                print(f"Early stopping at epoch {epoch+1}")
+                break
+            
+            self.scheduler.step(val_loss)
+            # Clear cache if using CUDA
+            if self.device.type == 'cuda':
+                torch.cuda.empty_cache()
+        
+        # Load best model
+        if best_model_state is not None:
+            self.model.load_state_dict(best_model_state)
+            print("Loaded best model from training")
 
     def predict(self, X_test):
-        pass
+        print("Starting prediction...")
+        
+        # Convert to numpy if DataFrame
+        X_test_np = X_test.values if hasattr(X_test, 'values') else X_test
+        
+        # Reshape from (N, 784) to (N, 1, 28, 28)
+        X_test_tensor = torch.tensor(
+            X_test_np.reshape(-1, 1, 28, 28), 
+            dtype=torch.float32
+        )
+        
+        self.model.eval()
+        predictions = []
+        batch_size = 1000
+        
+        with torch.no_grad():
+            for i in range(0, len(X_test_tensor), batch_size):
+                batch = X_test_tensor[i:i+batch_size].to(self.device)
+                outputs = self.model(batch)
+                _, predicted = torch.max(outputs, 1)
+                predictions.extend(predicted.cpu().numpy())
+                
+                if self.device.type == 'cuda':
+                    torch.cuda.empty_cache()
+        
+        print("Prediction complete")
+        return np.array(predictions)
 
 class MnistClassifier:
     def __init__(self, classifier: str):
