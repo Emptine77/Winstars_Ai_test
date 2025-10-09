@@ -77,10 +77,10 @@ class FeedForwardMnistClassifier(MnistClassifierInterface):
         X_train, X_val, y_train, y_val = train_test_split(
             X_train, y_train, test_size=0.1, random_state=42
         )
-        X_train_tensor = torch.tensor(X_train.values, dtype=torch.float32).to(self.device)
-        y_train_tensor = torch.tensor(y_train.values, dtype=torch.long).to(self.device)
-        X_val_tensor = torch.tensor(X_val.values, dtype=torch.float32).to(self.device)
-        y_val_tensor = torch.tensor(y_val.values, dtype=torch.long).to(self.device)
+        X_train_tensor = torch.tensor(X_train.values, dtype=torch.float32)
+        y_train_tensor = torch.tensor(y_train.values, dtype=torch.long)
+        X_val_tensor = torch.tensor(X_val.values, dtype=torch.float32)
+        y_val_tensor = torch.tensor(y_val.values, dtype=torch.long)
         
         # DataLoader for batching
         dataset = torch.utils.data.TensorDataset(X_train_tensor, y_train_tensor)
@@ -103,8 +103,8 @@ class FeedForwardMnistClassifier(MnistClassifierInterface):
             total = 0
             
             for batch_X, batch_y in dataloader:
+                batch_X, batch_y = batch_X.to(self.device), batch_y.to(self.device)
                 self.optimizer.zero_grad(set_to_none=True) # More efficient zeroing
-                
                 outputs = self.model(batch_X) 
                 loss = self.criterion(outputs, batch_y)
                 
@@ -126,6 +126,9 @@ class FeedForwardMnistClassifier(MnistClassifierInterface):
             # Validation step
             self.model.eval()
             with torch.no_grad():
+                X_val_tensor = X_val_tensor.to(self.device)
+                y_val_tensor = y_val_tensor.to(self.device)
+                
                 val_outputs = self.model(X_val_tensor)
                 val_loss = self.criterion(val_outputs, y_val_tensor).item()
                 _, val_preds = torch.max(val_outputs, 1)
