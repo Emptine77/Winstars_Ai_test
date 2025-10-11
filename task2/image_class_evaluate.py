@@ -9,8 +9,6 @@ import torch
 import torch.nn as nn
 from torchvision import transforms, models
 from PIL import Image
-import warnings
-warnings.filterwarnings('ignore')
 
 
 class AnimalClassifier:
@@ -165,7 +163,7 @@ def main():
         
         # Display results
         print("\nResults:")
-        for result in results[:5]:  # Show first 5
+        for result in results[:args.top_k]:  # Show top_k results
             print(f"\n{os.path.basename(result['image'])}:")
             for class_name, prob in result['predictions']:
                 print(f"  - {class_name}: {prob*100:.2f}%")
