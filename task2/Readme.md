@@ -30,7 +30,7 @@ The pipeline supports 10 animal classes:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Emptine77/Winstars_Ai_test/blob/main/task2/Readme.md
+git clone https://github.com/Emptine77/Winstars_Ai_test
 
 # Install dependencies
 pip install -r requirements.txt
