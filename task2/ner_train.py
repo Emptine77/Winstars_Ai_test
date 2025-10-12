@@ -19,10 +19,6 @@ from transformers import (
 from sklearn.model_selection import train_test_split
 from seqeval.metrics import f1_score, precision_score, recall_score
 from tqdm import tqdm
-import warnings
-
-warnings.filterwarnings('ignore')
-
 
 # ================================
 # Synthetic NER Data Generator
@@ -235,22 +231,11 @@ def evaluate(model, dataloader, device, id2label):
 # Main Training Function
 # ================================
 def train_ner_model(args):
-    print("=" * 80)
-    print("ENHANCED ANIMAL NER MODEL TRAINING")
-    print("=" * 80)
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"\nDevice: {device}")
 
     os.makedirs(args.output_dir, exist_ok=True)
-    print("\nGenerating synthetic training data...")
     data = create_enhanced_ner_data(num_samples=args.num_samples)
-    print(f"Total samples: {len(data)}")
-
     train_data, val_data = train_test_split(data, test_size=0.2, random_state=args.seed)
-    print(f"Training samples: {len(train_data)}")
-    print(f"Validation samples: {len(val_data)}")
-
     tokenizer = BertTokenizerFast.from_pretrained(args.model_name)
 
     train_dataset = NERDataset(
@@ -301,7 +286,7 @@ def train_ner_model(args):
 
         if f1 > best_f1:
             best_f1 = f1
-            print("New best F1 score! Saving model...")
+            print("F1 improved, saving model...")
             model.save_pretrained(args.output_dir)
             tokenizer.save_pretrained(args.output_dir)
             with open(os.path.join(args.output_dir, 'label_map.json'), 'w') as f:
@@ -313,9 +298,6 @@ def train_ner_model(args):
     print("=" * 80)
 
 
-# ================================
-# Main
-# ================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train enhanced NER model for animal recognition')
     parser.add_argument('--model_name', type=str, default='bert-base-uncased', help='Pretrained model name')
