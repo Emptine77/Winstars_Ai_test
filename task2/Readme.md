@@ -398,5 +398,5 @@ Contributions are welcome! Please:
 
 ## Contact
 
-For questions or issues, please open an issue on GitHub or contact [Empt1ne77@gmail.com]
+For questions, you can contact me [Empt1ne77@gmail.com]
 
