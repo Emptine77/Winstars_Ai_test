@@ -30,7 +30,7 @@ The pipeline supports 10 animal classes:
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Emptine77/Winstars_Ai_test
 
 # Install dependencies
 pip install -r requirements.txt
@@ -167,25 +167,25 @@ python pipeline.py \
 
 **Output:**
 ```
-VERIFICATION PROCESS
+================================================================================
+INTERACTIVE MODE (Ctrl+C to exit)
+================================================================================
+Text: Can you see the cat in this photo? 
+Image path: D:\Downloads\rn_image_picker_lib_temp_1c159566-036d-4984-9de5-12061937613c.jpg  
+
+================================================================================
+VERIFICATION
 ================================================================================
 
-Text: 'There is a cow in the picture'
-Image: path/to/cow.jpg
+Extracted animals: ['cat']
 
-1. Extracted animals from text: ['cow']
+Image predictions:
+  1. cat: 99.97%
+  2. dog: 0.03%
 
-2. Image classification:
-   Predicted: cow
-   Confidence: 87.34%
-
-3. Verification:
-   Text mentions: ['cow']
-   Image contains: cow
-   ✓ MATCH: The text correctly describes the image!
+True
+ Text mentions ['cat'], image shows cat
 ================================================================================
-
-Final Result: True
 ```
 
 ### Interactive Mode
@@ -262,23 +262,116 @@ animal-verification-pipeline/
 - Training: Transfer learning with data augmentation
 - Optimizer: Adam with learning rate scheduling
 
-## 📈 Performance
+## Performance
 
 ### NER Model
-- F1 Score: ~0.95
-- Precision: ~0.96
-- Recall: ~0.94
+- F1 Score: 1.00
+- Precision: 1.00
+- Recall: 1.00
 
 ### Image Classifier
-- Validation Accuracy: ~85-90%
+- Validation Accuracy: 95.91%
 - Training uses:
   - Data augmentation (flips, rotations, color jitter)
   - Class weighting for imbalanced classes
   - Early stopping on validation loss
+    
+## Training Process for NER Model
+
+### Model Architecture
+- **Base Model**: BERT (bert-base-uncased)
+- **Task**: Token Classification (Named Entity Recognition)
+- **Custom Head**: Linear layer on top of BERT embeddings
+- **Entity Types**: [Your entity types - e.g., PER, ORG, LOC, MISC, O]
+
+### Training Configuration
+- **Dataset Split**: [Your split ratio - e.g., 80% train / 20% validation]
+- **Batch Size**: [Your batch size - likely 16 or 32]
+- **Epochs**: 5
+- **Optimizer**: AdamW
+- **Learning Rate**: [Your lr - typically 2e-5 or 5e-5]
+- **Max Sequence Length**: [Your max length - typically 128 or 512]
+- **Loss Function**: CrossEntropyLoss with label smoothing
+
+### Training Results
+
+| Epoch | Train Loss | Val F1 | Val Precision | Val Recall | Notes |
+|-------|------------|--------|---------------|------------|-------|
+| 1/5   | 0.1691     | 1.0000 | 1.0000        | 1.0000     | ✓ Best model saved |
+
+### Performance Metrics
+- **Best Validation F1**: 100.00%
+- **Precision**: 100.00%
+- **Recall**: 100.00%
+- **Training Time**: ~22.5 minutes per epoch
+- **Evaluation Time**: ~1.3 minutes per epoch
+
+### Key Observations
+1. **Perfect Score Alert**: 100% F1 score after just 1 epoch suggests:
+   - Very simple dataset or limited entity diversity
+   - Possible data leakage (check train/val split)
+   - Small validation set size
+   - Or genuinely excellent model performance on well-defined entities
+
+2. **Fast Convergence**: Model achieved optimal performance immediately
+3. **Balanced Performance**: Perfect precision and recall (no trade-off needed)
+
+### Computational Performance
+- **Training Speed**: ~9.82 seconds per batch (138 batches)
+- **Validation Speed**: ~2.19 seconds per batch (35 batches)
+- **Total Time**: ~24 minutes for 1 complete epoch
+  
+## Training Process for Image Classifier Model
+
+### Model Architecture
+- **Base Model**: ResNet50 (pretrained on ImageNet)
+- **Transfer Learning**: Early layers frozen, custom classification head
+- **Classifier Head**: 
+  - Dropout(0.5) → Linear(2048→512) → ReLU → Dropout(0.3) → Linear(512→10)
+
+### Training Configuration
+- **Dataset Split**: 70% train / 10% validation / 20% test (stratified)
+- **Batch Size**: 32
+- **Epochs**: 5
+- **Optimizer**: Adam (lr=0.001)
+- **Loss Function**: CrossEntropyLoss with class weights
+- **Scheduler**: ReduceLROnPlateau (patience=3, factor=0.5)
+
+### Data Augmentation
+- **Training**: Random crop, horizontal flip, rotation (±15°), color jitter
+- **Validation/Test**: Center crop only
+- **Normalization**: ImageNet statistics
+
+### Training Results
+
+| Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Notes |
+|-------|------------|-----------|----------|---------|-------|
+| 1/5   | 0.4206     | 87.30%    | 0.1472   | 95.15%  | ✓ Best model saved |
+| 2/5   | 0.3045     | 90.65%    | 0.1427   | 95.42%  | ✓ Best model saved |
+| 3/5   | 0.2909     | 91.12%    | 0.1571   | 94.84%  | - |
+| 4/5   | 0.2748     | 91.67%    | 0.1227   | 95.91%  | ✓ Best model saved |
+| 5/5   | 0.2684     | 91.84%    | 0.1396   | 95.07%  | - |
+
+### Final Performance
+- **Best Validation Accuracy**: 95.91% (Epoch 4)
+- **Test Accuracy**: 95.74%
+- **Training Time**: ~1h 30min (5 epochs)
+- **Time per Epoch**: ~18 minutes
+
+### Key Observations
+1. **Rapid Convergence**: Model achieved 95%+ validation accuracy in just 1 epoch
+2. **No Overfitting**: Small gap between train (91.84%) and validation (95.91%) accuracy
+3. **Stable Performance**: Test accuracy (95.74%) closely matches best validation accuracy
+4. **Effective Transfer Learning**: Pretrained ResNet50 weights provided excellent starting point
+5. **Class Balancing**: Weighted loss function successfully handled class imbalance
+
+### Training Metrics Graph
+<img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/192f4a1a-58a1-4a71-a0f0-0708815e63a9" />
 
 ## Troubleshooting
 
 ### CUDA Out of Memory
+If you don`t have enough memory for this model, you need to reduce the batch size.
 Reduce batch size:
 ```bash
 python train_image_classifier.py --batch_size 16  # Instead of 32
@@ -305,5 +398,5 @@ Contributions are welcome! Please:
 
 ## Contact
 
-For questions or issues, please open an issue on GitHub or contact [Empt1ne77@gmail.com]
+For questions, you can contact me [Empt1ne77@gmail.com]
 
