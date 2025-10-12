@@ -371,6 +371,7 @@ animal-verification-pipeline/
 ## Troubleshooting
 
 ### CUDA Out of Memory
+If you don`t have enough memory for this model, you need to reduce the batch size.
 Reduce batch size:
 ```bash
 python train_image_classifier.py --batch_size 16  # Instead of 32
