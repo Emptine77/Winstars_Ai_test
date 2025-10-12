@@ -249,11 +249,10 @@ def train_classifier(args):
     
     # Loss, optimizer, scheduler
     criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
-    print("✓ Using weighted CrossEntropyLoss for class imbalance")
     
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='max', factor=0.5, patience=3, verbose=True
+        optimizer, mode='max', factor=0.5, patience=3
     )
     
     # Training loop
@@ -282,7 +281,7 @@ def train_classifier(args):
         
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            print(f"✓ New best validation accuracy! Saving model...")
+            print(f"New best accuracy! Saving model...")
             
             os.makedirs(args.output_dir, exist_ok=True)
             torch.save({
@@ -352,7 +351,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, default='raw-img')
     parser.add_argument('--output_dir', type=str, default='models/image_classifier')
     parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--num_epochs', type=int, default=20)
+    parser.add_argument('--num_epochs', type=int, default=5)
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--seed', type=int, default=42)
