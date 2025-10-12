@@ -15,9 +15,6 @@ from PIL import Image
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-import warnings
-warnings.filterwarnings('ignore')
-
 
 # =============================================================================
 # DATASET
@@ -169,7 +166,6 @@ def train_classifier(args):
     print("=" * 80)
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"\nDevice: {device}")
     
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -180,10 +176,7 @@ def train_classifier(args):
     train_paths, val_paths, train_labels, val_labels = train_test_split(
         image_paths, labels, test_size=0.2, random_state=args.seed, stratify=labels
     )
-    
-    print(f"\nTraining samples: {len(train_paths)}")
-    print(f"Validation samples: {len(val_paths)}")
-    
+
     train_transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomCrop(224),
@@ -257,7 +250,7 @@ def train_classifier(args):
                 'val_acc': val_acc,
                 'class_to_idx': class_to_idx,
                 'idx_to_class': {v: k for k, v in class_to_idx.items()}
-            }, os.path.join(args.output_dir, 'best_model.pth'))
+            }, os.path.join(args.output_dir, 'image_classifier_model.pth'))
             
             with open(os.path.join(args.output_dir, 'class_mapping.json'), 'w') as f:
                 json.dump({
