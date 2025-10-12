@@ -276,6 +276,53 @@ animal-verification-pipeline/
   - Class weighting for imbalanced classes
   - Early stopping on validation loss
 
+## Training Process for Image Classifier Model
+
+### Model Architecture
+- **Base Model**: ResNet50 (pretrained on ImageNet)
+- **Transfer Learning**: Early layers frozen, custom classification head
+- **Classifier Head**: 
+  - Dropout(0.5) → Linear(2048→512) → ReLU → Dropout(0.3) → Linear(512→10)
+
+### Training Configuration
+- **Dataset Split**: 70% train / 10% validation / 20% test (stratified)
+- **Batch Size**: 32
+- **Epochs**: 5
+- **Optimizer**: Adam (lr=0.001)
+- **Loss Function**: CrossEntropyLoss with class weights
+- **Scheduler**: ReduceLROnPlateau (patience=3, factor=0.5)
+
+### Data Augmentation
+- **Training**: Random crop, horizontal flip, rotation (±15°), color jitter
+- **Validation/Test**: Center crop only
+- **Normalization**: ImageNet statistics
+
+### Training Results
+
+| Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Notes |
+|-------|------------|-----------|----------|---------|-------|
+| 1/5   | 0.4206     | 87.30%    | 0.1472   | 95.15%  | ✓ Best model saved |
+| 2/5   | 0.3045     | 90.65%    | 0.1427   | 95.42%  | ✓ Best model saved |
+| 3/5   | 0.2909     | 91.12%    | 0.1571   | 94.84%  | - |
+| 4/5   | 0.2748     | 91.67%    | 0.1227   | 95.91%  | ✓ Best model saved |
+| 5/5   | 0.2684     | 91.84%    | 0.1396   | 95.07%  | - |
+
+### Final Performance
+- **Best Validation Accuracy**: 95.91% (Epoch 4)
+- **Test Accuracy**: 95.74%
+- **Training Time**: ~1h 30min (5 epochs)
+- **Time per Epoch**: ~18 minutes
+
+### Key Observations
+1. **Rapid Convergence**: Model achieved 95%+ validation accuracy in just 1 epoch
+2. **No Overfitting**: Small gap between train (91.84%) and validation (95.91%) accuracy
+3. **Stable Performance**: Test accuracy (95.74%) closely matches best validation accuracy
+4. **Effective Transfer Learning**: Pretrained ResNet50 weights provided excellent starting point
+5. **Class Balancing**: Weighted loss function successfully handled class imbalance
+
+### Training Metrics Graph
+<img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/192f4a1a-58a1-4a71-a0f0-0708815e63a9" />
+
 ## Troubleshooting
 
 ### CUDA Out of Memory
