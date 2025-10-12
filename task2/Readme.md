@@ -275,7 +275,52 @@ animal-verification-pipeline/
   - Data augmentation (flips, rotations, color jitter)
   - Class weighting for imbalanced classes
   - Early stopping on validation loss
+    
+## Training Process for NER Model
 
+### Model Architecture
+- **Base Model**: BERT (bert-base-uncased)
+- **Task**: Token Classification (Named Entity Recognition)
+- **Custom Head**: Linear layer on top of BERT embeddings
+- **Entity Types**: [Your entity types - e.g., PER, ORG, LOC, MISC, O]
+
+### Training Configuration
+- **Dataset Split**: [Your split ratio - e.g., 80% train / 20% validation]
+- **Batch Size**: [Your batch size - likely 16 or 32]
+- **Epochs**: 5
+- **Optimizer**: AdamW
+- **Learning Rate**: [Your lr - typically 2e-5 or 5e-5]
+- **Max Sequence Length**: [Your max length - typically 128 or 512]
+- **Loss Function**: CrossEntropyLoss with label smoothing
+
+### Training Results
+
+| Epoch | Train Loss | Val F1 | Val Precision | Val Recall | Notes |
+|-------|------------|--------|---------------|------------|-------|
+| 1/5   | 0.1691     | 1.0000 | 1.0000        | 1.0000     | ✓ Best model saved |
+
+### Performance Metrics
+- **Best Validation F1**: 100.00%
+- **Precision**: 100.00%
+- **Recall**: 100.00%
+- **Training Time**: ~22.5 minutes per epoch
+- **Evaluation Time**: ~1.3 minutes per epoch
+
+### Key Observations
+1. **Perfect Score Alert**: 100% F1 score after just 1 epoch suggests:
+   - Very simple dataset or limited entity diversity
+   - Possible data leakage (check train/val split)
+   - Small validation set size
+   - Or genuinely excellent model performance on well-defined entities
+
+2. **Fast Convergence**: Model achieved optimal performance immediately
+3. **Balanced Performance**: Perfect precision and recall (no trade-off needed)
+
+### Computational Performance
+- **Training Speed**: ~9.82 seconds per batch (138 batches)
+- **Validation Speed**: ~2.19 seconds per batch (35 batches)
+- **Total Time**: ~24 minutes for 1 complete epoch
+  
 ## Training Process for Image Classifier Model
 
 ### Model Architecture
