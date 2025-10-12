@@ -22,9 +22,27 @@ from collections import Counter
 # =============================================================================
 
 class AnimalDataset(Dataset):
-    """Custom dataset for animal images"""
+    """
+    Custom dataset for animal images
+    
+    Loads images from file paths and applies transformations.
+    Suitable for image classification tasks.
+    
+    Attributes:
+        image_paths (list): List of paths to image files
+        labels (list): List of integer labels
+        transform (callable): Optional transform to apply to images
+    """
     
     def __init__(self, image_paths, labels, transform=None):
+        """
+        Initialize dataset
+        
+        Args:
+            image_paths (list): Paths to image files
+            labels (list): Corresponding integer labels
+            transform (callable, optional): Transformations to apply
+        """
         self.image_paths = image_paths
         self.labels = labels
         self.transform = transform
@@ -44,7 +62,19 @@ class AnimalDataset(Dataset):
 
 
 def load_dataset(data_dir, class_names):
-    """Load dataset from directory structure"""
+    """
+    Load dataset from directory structure
+    
+    Args:
+        data_dir (str): Root directory containing class subdirectories
+        class_names (list): List of valid class names to load
+        
+    Returns:
+        tuple (image_paths, labels, class_to_idx): 
+            - image_paths: List of paths to all images
+            - labels: List of corresponding integer labels
+            - class_to_idx: Dictionary mapping class names to indices
+    """
     image_paths = []
     labels = []
     
@@ -70,7 +100,16 @@ def load_dataset(data_dir, class_names):
 
 
 def calculate_class_weights(labels, num_classes):
-    """Calculate class weights for imbalanced dataset"""
+    """
+    Calculate weights for each class to handle class imbalance.
+    
+    Args:
+        labels (list or array-like): List of integer labels for all samples.
+        num_classes (int): Total number of classes in the dataset.
+        
+    Returns:
+        torch.FloatTensor: Tensor containing a weight for each class.
+    """
     label_counts = Counter(labels)
     total_samples = len(labels)
     
@@ -89,7 +128,16 @@ def calculate_class_weights(labels, num_classes):
 # =============================================================================
 
 def create_model(num_classes, pretrained=True):
-    """Create ResNet50 model for transfer learning"""
+    """
+    Create a ResNet50 model customized for transfer learning.
+    
+    Args:
+        num_classes (int): Number of output classes for the classification task.
+        pretrained (bool, optional): If True, load ResNet50 with ImageNet pretrained weights. Default is True.
+        
+    Returns:
+        torch.nn.Module: ResNet50 model with a custom classification head.
+    """
     model = models.resnet50(pretrained=pretrained)
     
     # Freeze early layers
@@ -114,6 +162,21 @@ def create_model(num_classes, pretrained=True):
 # =============================================================================
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
+    """
+    Perform one training epoch on the given model and dataloader.
+    
+    Args:
+        model (torch.nn.Module): The neural network to train.
+        dataloader (torch.utils.data.DataLoader): DataLoader providing training batches.
+        criterion (torch.nn.Module): Loss function to optimize.
+        optimizer (torch.optim.Optimizer): Optimizer used to update model parameters.
+        device (torch.device): Device on which to run computations (CPU or GPU).
+        
+    Returns:
+        tuple (epoch_loss, epoch_acc): 
+            - epoch_loss (float): Average loss over all batches in the epoch.
+            - epoch_acc (float): Accuracy (%) over all samples in the epoch.
+    """
     model.train()
     running_loss = 0.0
     correct = 0
@@ -147,6 +210,20 @@ def train_epoch(model, dataloader, criterion, optimizer, device):
 
 
 def validate(model, dataloader, criterion, device):
+    """
+    Evaluate the model on a validation dataset.
+    
+    Args:
+        model (torch.nn.Module): The neural network to evaluate.
+        dataloader (torch.utils.data.DataLoader): DataLoader providing validation batches.
+        criterion (torch.nn.Module): Loss function used to compute validation loss.
+        device (torch.device): Device on which to run computations (CPU or GPU).
+        
+    Returns:
+        tuple (epoch_loss, epoch_acc): 
+        - epoch_loss (float): Average loss over all validation batches.
+        - epoch_acc (float): Accuracy (%) over all validation samples.
+    """
     model.eval()
     running_loss = 0.0
     correct = 0

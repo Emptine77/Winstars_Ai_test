@@ -10,9 +10,28 @@ from transformers import BertTokenizerFast, BertForTokenClassification
 
 
 class AnimalNERExtractor:
-    """Animal entity extractor using trained NER model"""
+    """
+    Animal entity extractor using trained NER model
     
+    This class loads a pre-trained BERT-based NER model and extracts animal entities
+    from input text. It uses BIO (Begin-Inside-Outside) tagging scheme to identify
+    and extract animal mentions from natural language text.
+    
+    Attributes:
+        device (torch.device): Computation device (CPU or CUDA)
+        tokenizer (BertTokenizerFast): BERT tokenizer for text processing
+        model (BertForTokenClassification): Trained NER model
+        id2label (dict): Mapping from label IDs to label names
+        valid_animals (set): Set of valid animal names for validation
+    """
     def __init__(self, model_path):
+        """
+        Initialize the NER extractor with a trained model
+        
+        Args:
+            model_path (str): Path to the directory containing trained model files
+                             (model weights, tokenizer config, label mapping)
+        """
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         print(f"Loading model from: {model_path}")
@@ -37,7 +56,15 @@ class AnimalNERExtractor:
         print("Model loaded successfully!")
     
     def extract_animals(self, text):
-        """Extract animal entities from text"""
+        """
+        Extract animal entities from input text
+
+        Args:
+            text (str): Input text to extract animals from
+            
+        Returns:
+            list: List of unique animal names found in text
+        """
         tokens = text.split()
         encoding = self.tokenizer(
             tokens,

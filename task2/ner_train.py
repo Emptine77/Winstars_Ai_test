@@ -24,7 +24,24 @@ from tqdm import tqdm
 # Synthetic NER Data Generator
 # ================================
 def create_enhanced_ner_data(num_samples=5000):
-    """Create diverse synthetic NER data for animals with realistic sentences."""
+    """ 
+    Create diverse synthetic NER data for animals with realistic sentences
+    
+    This function generates a large dataset of labeled sentences for training
+    a Named Entity Recognition model.
+    The data is automatically labeled using BIO tagging scheme:
+    - B-ANIMAL: Beginning of an animal mention
+    - I-ANIMAL: Inside/continuation of an animal mention
+    - O: Outside any animal mention
+    
+    Args:
+        num_samples (int): Number of synthetic sentences to generate (default: 5000)
+        
+    Returns:
+        list: List of dictionaries, each containing:
+              - 'tokens': list of word tokens
+              - 'labels': list of corresponding BIO labels
+    """
     animals = [
         'dog', 'cat', 'horse', 'spider', 'butterfly', 'chicken',
         'sheep', 'cow', 'squirrel', 'elephant'
@@ -126,9 +143,28 @@ def create_enhanced_ner_data(num_samples=5000):
 # Dataset
 # ================================
 class NERDataset(Dataset):
-    """PyTorch Dataset for NER"""
+    """
+    PyTorch Dataset for NER
+    
+    Attributes:
+        texts (list): List of tokenized sentences
+        labels (list): List of label sequences
+        tokenizer (BertTokenizerFast): BERT tokenizer
+        max_len (int): Maximum sequence length
+        label2id (dict): Mapping from label names to IDs
+        id2label (dict): Mapping from IDs to label names
+    """
 
     def __init__(self, texts, labels, tokenizer, max_len=128):
+        """
+        Initialize NER dataset
+        
+        Args:
+            texts (list): List of tokenized texts (list of word lists)
+            labels (list): List of label sequences
+            tokenizer (BertTokenizerFast): Tokenizer for encoding
+            max_len (int): Maximum sequence length (default: 128)
+        """
         self.texts = texts
         self.labels = labels
         self.tokenizer = tokenizer
@@ -171,6 +207,19 @@ class NERDataset(Dataset):
 # Training and Evaluation
 # ================================
 def train_epoch(model, dataloader, optimizer, scheduler, device):
+    """
+    Train model for one epoch
+    
+    Args:
+        model: NER model to train
+        dataloader: Training data loader
+        optimizer: Optimizer for weight updates
+        scheduler: Learning rate scheduler
+        device: Computation device (CPU/GPU)
+        
+    Returns:
+        float: Average training loss for the epoch
+    """
     model.train()
     total_loss = 0
     progress_bar = tqdm(dataloader, desc='Training')
@@ -195,6 +244,21 @@ def train_epoch(model, dataloader, optimizer, scheduler, device):
 
 
 def evaluate(model, dataloader, device, id2label):
+    """
+    Evaluate model on validation/test set
+    
+    Uses seqeval library for proper sequence labeling metrics.
+    Metrics are computed at the entity level (not token level).
+    
+    Args:
+        model: NER model to evaluate
+        dataloader: Validation/test data loader
+        device: Computation device
+        id2label (dict): Mapping from label IDs to names
+        
+    Returns:
+        tuple: (f1_score, precision, recall, predictions, true_labels)
+    """
     model.eval()
     predictions = []
     true_labels = []
@@ -227,10 +291,21 @@ def evaluate(model, dataloader, device, id2label):
     return f1, precision, recall, predictions, true_labels
 
 
-# ================================
-# Main Training Function
-# ================================
 def train_ner_model(args):
+    """
+    Main training function for NER model
+
+    Args:
+        args: Command-line arguments containing:
+              - model_name: Pretrained BERT model to use
+              - output_dir: Where to save trained model
+              - max_len: Maximum sequence length
+              - batch_size: Training batch size
+              - num_epochs: Number of training epochs
+              - learning_rate: Learning rate
+              - seed: Random seed for reproducibility
+              - num_samples: Number of synthetic samples to generate
+    """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     os.makedirs(args.output_dir, exist_ok=True)

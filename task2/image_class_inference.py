@@ -12,9 +12,27 @@ from PIL import Image
 
 
 class AnimalClassifier:
-    """Animal image classifier"""
+    """
+    Animal image classifier for inference
+    
+    Loads a trained ResNet50 model and performs classification on animal images.
+    Supports top-k predictions with confidence scores.
+    
+    Attributes:
+        device (torch.device): Computation device (CPU/GPU)
+        idx_to_class (dict): Mapping from class indices to names
+        num_classes (int): Total number of animal classes
+        model (nn.Module): Loaded ResNet50 model
+        transform (transforms.Compose): Image preprocessing pipeline
+    """
     
     def __init__(self, model_path):
+        """
+        Initialize classifier with trained model
+        
+        Args:
+            model_path (str): Path to directory containing model weights and class mapping
+        """
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         # Load class mapping
@@ -58,7 +76,16 @@ class AnimalClassifier:
         print("Model loaded successfully!")
     
     def predict(self, image_path, top_k=1):
-        """Predict the class of an image"""
+        """
+        Predict the class of an image with confidence scores
+        
+        Args:
+            image_path (str): Path to image file
+            top_k (int): Number of top predictions to return (default: 1)
+            
+        Returns:
+            list (tuple): List of tuples (class_name, confidence) for top-k predictions
+        """
         image = Image.open(image_path).convert('RGB')
         image_tensor = self.transform(image).unsqueeze(0).to(self.device)
         
