@@ -262,7 +262,7 @@ animal-verification-pipeline/
 - Training: Transfer learning with data augmentation
 - Optimizer: Adam with learning rate scheduling
 
-## 📈 Performance
+## Performance
 
 ### NER Model
 - F1 Score: ~0.95
@@ -270,7 +270,7 @@ animal-verification-pipeline/
 - Recall: ~0.94
 
 ### Image Classifier
-- Validation Accuracy: ~85-90%
+- Validation Accuracy: 95.91%
 - Training uses:
   - Data augmentation (flips, rotations, color jitter)
   - Class weighting for imbalanced classes
