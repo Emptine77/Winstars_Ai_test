@@ -375,7 +375,7 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
-    print("Enter which model to use: 'rf' (random forest), 'nn' (feedforward neural network), 'cnn' (not implemented).")
+    print("Enter which model to use: 'rf' (random forest), 'nn' (feedforward neural network), 'cnn' (convolutional neural network).")
     print("Type 'Exit' to quit.")
     while True:
         choice = input("Model> ").strip()
