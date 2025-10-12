@@ -167,25 +167,25 @@ python pipeline.py \
 
 **Output:**
 ```
-VERIFICATION PROCESS
+================================================================================
+INTERACTIVE MODE (Ctrl+C to exit)
+================================================================================
+Text: Can you see the cat in this photo? 
+Image path: D:\Downloads\rn_image_picker_lib_temp_1c159566-036d-4984-9de5-12061937613c.jpg  
+
+================================================================================
+VERIFICATION
 ================================================================================
 
-Text: 'There is a cow in the picture'
-Image: path/to/cow.jpg
+Extracted animals: ['cat']
 
-1. Extracted animals from text: ['cow']
+Image predictions:
+  1. cat: 99.97%
+  2. dog: 0.03%
 
-2. Image classification:
-   Predicted: cow
-   Confidence: 87.34%
-
-3. Verification:
-   Text mentions: ['cow']
-   Image contains: cow
-   ✓ MATCH: The text correctly describes the image!
+True
+ Text mentions ['cat'], image shows cat
 ================================================================================
-
-Final Result: True
 ```
 
 ### Interactive Mode
